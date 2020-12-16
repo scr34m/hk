@@ -24,6 +24,9 @@ func (h *homekit) Init() error {
 	case "humifier":
 		hum1 := NewAccessoryHumidifier(&h.Device)
 		a = hum1.Accessory
+	case "temperature_humidity":
+		hum1 := NewAccessorySensorTempHum(&h.Device)
+		a = hum1.Accessory
 	}
 
 	// TODO use StoragePath

@@ -7,6 +7,7 @@ type ConfigurationDevice struct {
 	Version      string
 	Key          string
 	Ip           string
+	Url          string
 }
 
 type ConfigurationAccessory struct {
