@@ -52,17 +52,16 @@ type TuyaHumidifier struct {
 	TuyaHumidifier_ServiceFan       *TuyaHumidifier_ServiceFan
 }
 
-func NewAccessoryHumidifier(conf *ConfigurationDevice) *TuyaHumidifier {
+func NewAccessoryHumidifier(dm *tuya.DeviceManager, internalname string, conf *ConfigurationDevice) *TuyaHumidifier {
 	s := new(ITuyaDeviceHumifier)
 
-	dm := tuya.NewDeviceManagerRaw()
-	dm.DefineDevice(conf.Shortname, conf.Serialnumber, conf.Key, conf.Ip, conf.Version, s)
+	dm.DefineDevice(internalname, conf.Serialnumber, conf.Key, conf.Ip, conf.Version, s)
 
-	d, _ := dm.GetDevice(conf.Shortname)
+	d, _ := dm.GetDevice(internalname)
 	sw1 := d.(TuyaDeviceHumifier)
 
 	acc := TuyaHumidifier{}
-	acc.Accessory = accessory.New(accessory.Info{Name: conf.Name, SerialNumber: conf.Serialnumber, Manufacturer: "Tuya", FirmwareRevision: conf.Version}, accessory.TypeHumidifier)
+	acc.Accessory = accessory.New(accessory.Info{Name: conf.Name, SerialNumber: conf.Serialnumber, Manufacturer: conf.Manufacturer, FirmwareRevision: conf.Version}, accessory.TypeHumidifier)
 
 	acc.TuyaHumidifier_ServiceLightbulb = NewTuyaHumidifier_ServiceLightbulb()
 	acc.Accessory.AddService(acc.TuyaHumidifier_ServiceLightbulb.Service)

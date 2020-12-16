@@ -2,7 +2,7 @@ package main
 
 type ConfigurationDevice struct {
 	Name         string
-	Shortname    string
+	Manufacturer string
 	Serialnumber string
 	Version      string
 	Key          string
@@ -11,9 +11,10 @@ type ConfigurationDevice struct {
 }
 
 type ConfigurationAccessory struct {
-	Pin    string
-	Type   string
-	Device ConfigurationDevice
+	Pin          string
+	Type         string
+	Internalname string
+	Device       ConfigurationDevice
 }
 
 type Configuration struct {

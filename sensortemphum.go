@@ -16,7 +16,7 @@ type SensorTempHum struct {
 
 func NewAccessorySensorTempHum(conf *ConfigurationDevice) *SensorTempHum {
 	acc := SensorTempHum{}
-	acc.Accessory = accessory.New(accessory.Info{Name: conf.Name, SerialNumber: conf.Serialnumber, Manufacturer: "Sencor", FirmwareRevision: conf.Version}, accessory.TypeHumidifier)
+	acc.Accessory = accessory.New(accessory.Info{Name: conf.Name, SerialNumber: conf.Serialnumber, Manufacturer: conf.Manufacturer, FirmwareRevision: conf.Version}, accessory.TypeHumidifier)
 
 	acc.TemperatureSensor = service.NewTemperatureSensor()
 	acc.Accessory.AddService(acc.TemperatureSensor.Service)
