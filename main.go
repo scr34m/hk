@@ -1,31 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/brutella/hc"
 	"github.com/brutella/hc/log"
 )
-
-type ConfigurationDevice struct {
-	Name         string
-	Shortname    string
-	Serialnumber string
-	Version      string
-	Key          string
-	Ip           string
-}
-
-type Configuration struct {
-	Pin     string
-	Devices []ConfigurationDevice
-}
-
-func mapInt(x, in_min, in_max, out_min, out_max int) int {
-	return (x-in_min)*(out_max-out_min)/(in_max-in_min) + out_min
-}
 
 func main() {
 	c := flag.String("c", "hk.json", "Specify the configuration file.")
@@ -42,18 +27,34 @@ func main() {
 	if err != nil {
 		log.Info.Fatal("can't decode config JSON: ", err)
 	}
-	log.Info.Printf("%v\n", Config)
 
-	hum1 := NewAccessoryHumidifier(&Config.Devices[0])
-
-	t, err := hc.NewIPTransport(hc.Config{Pin: Config.Pin}, hum1.Accessory)
-	if err != nil {
-		log.Info.Panic(err)
+	if Config.Debug {
+		log.Debug.Enable()
 	}
 
-	hc.OnTermination(func() {
-		<-t.Stop()
-	})
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 
-	t.Start()
+	termChan := make(chan int)
+
+	ctx, shutdown := context.WithCancel(context.Background())
+
+	for _, a := range Config.Accessories {
+		homekit := makeHomekit(a)
+		homekit.Init()
+		go homekit.Start(ctx)
+	}
+
+	for {
+		select {
+		case <-termChan:
+		case s := <-sig:
+			log.Info.Printf("Received signal %s, stopping ", s)
+			shutdown()
+
+			// TODO wait accessories to stop
+			time.Sleep(time.Second * 2)
+			return
+		}
+	}
 }
