@@ -76,19 +76,27 @@ func NewAccessoryHumidifier(dm *tuya.DeviceManager, internalname string, conf *C
 		for {
 			select {
 			case <-syncChannel:
-				acc.TuyaHumidifier_ServiceLightbulb.On.SetValue(sw1.Status("11").(bool))
-				acc.TuyaHumidifier_ServiceLightbulb.Brightness.SetValue(mapInt(int(sw1.Status("111").(float64)), 0, 255, 0, 100))
-
-				v := sw1.Status("103").(string)
-				if v == "off" {
+				v := sw1.Status("12").(float64)
+				if v != 0 {
+					sw1.SetW("12", 0, 2)
+					acc.TuyaHumidifier_ServiceLightbulb.On.SetValue(false)
 					acc.TuyaHumidifier_ServiceFan.On.SetValue(false)
 					acc.TuyaHumidifier_ServiceFan.RotationSpeed.SetValue(0)
-				} else if v == "small" {
-					acc.TuyaHumidifier_ServiceFan.On.SetValue(true)
-					acc.TuyaHumidifier_ServiceFan.RotationSpeed.SetValue(50)
-				} else if v == "big" {
-					acc.TuyaHumidifier_ServiceFan.On.SetValue(true)
-					acc.TuyaHumidifier_ServiceFan.RotationSpeed.SetValue(100)
+				} else {
+					acc.TuyaHumidifier_ServiceLightbulb.On.SetValue(sw1.Status("11").(bool))
+					acc.TuyaHumidifier_ServiceLightbulb.Brightness.SetValue(mapInt(int(sw1.Status("111").(float64)), 0, 255, 0, 100))
+
+					v := sw1.Status("103").(string)
+					if v == "off" {
+						acc.TuyaHumidifier_ServiceFan.On.SetValue(false)
+						acc.TuyaHumidifier_ServiceFan.RotationSpeed.SetValue(0)
+					} else if v == "small" {
+						acc.TuyaHumidifier_ServiceFan.On.SetValue(true)
+						acc.TuyaHumidifier_ServiceFan.RotationSpeed.SetValue(50)
+					} else if v == "big" {
+						acc.TuyaHumidifier_ServiceFan.On.SetValue(true)
+						acc.TuyaHumidifier_ServiceFan.RotationSpeed.SetValue(100)
+					}
 				}
 			}
 		}
@@ -102,9 +110,14 @@ func NewAccessoryHumidifier(dm *tuya.DeviceManager, internalname string, conf *C
 		if sw1Pending {
 			log.Info.Printf("Lightbulb working...\n")
 			return
-		} else {
-			sw1Pending = true
 		}
+
+		// bulb status is same then stop
+		if on == sw1.Status("11").(bool) {
+			return
+		}
+
+		sw1Pending = true
 
 		var err error
 		if on {
