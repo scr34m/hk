@@ -33,9 +33,14 @@ func (h *homekit) Init() error {
 	case "humifier":
 		hum1 := NewAccessoryHumidifier(dm, h.Internalname, &h.Device)
 		a = hum1.Accessory
+	case "light":
+		hum1 := NewAccessoryLight(dm, h.Internalname, &h.Device)
+		a = hum1.Accessory
 	case "temperature_humidity":
 		hum1 := NewAccessorySensorTempHum(&h.Device)
 		a = hum1.Accessory
+	default:
+		panic(h.Type)
 	}
 
 	t, err := hc.NewIPTransport(hc.Config{Pin: h.Pin, StoragePath: h.Internalname}, a)
