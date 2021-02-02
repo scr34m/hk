@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 
@@ -34,12 +33,10 @@ func NewAccessorySensorTempHum(conf *ConfigurationDevice) *SensorTempHum {
 			if err == nil {
 				if val, ok := result["temperature"]; ok {
 					f, _ := strconv.ParseFloat(val.(string), 64)
-					fmt.Printf("%v\n", val)
 					acc.TemperatureSensor.CurrentTemperature.SetValue(f)
 				}
 				if val, ok := result["humidity"]; ok {
 					f, _ := strconv.ParseFloat(val.(string), 64)
-					fmt.Printf("%v\n", val)
 					acc.HumiditySensor.CurrentRelativeHumidity.SetValue(f)
 				}
 			}
