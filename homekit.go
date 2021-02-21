@@ -40,7 +40,10 @@ func (h *homekit) Init() error {
 		hum1 := NewAccessoryOutlet(dm, h.Internalname, &h.Device)
 		a = hum1.Accessory
 	case "temperature_humidity":
-		hum1 := NewAccessorySensorTempHum(&h.Device)
+		hum1 := NewAccessoryTemperatureHumidity(&h.Device)
+		a = hum1.Accessory
+	case "heating_system":
+		hum1 := NewAccessoryHeatingSystem(&h.Device)
 		a = hum1.Accessory
 	default:
 		panic(h.Type)

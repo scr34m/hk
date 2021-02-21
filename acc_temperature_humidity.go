@@ -8,15 +8,15 @@ import (
 	"github.com/brutella/hc/service"
 )
 
-type SensorTempHum struct {
+type TemperatureHumidity struct {
 	Accessory         *accessory.Accessory
 	TemperatureSensor *service.TemperatureSensor
 	HumiditySensor    *service.HumiditySensor
 }
 
-func NewAccessorySensorTempHum(conf *ConfigurationDevice) *SensorTempHum {
-	acc := SensorTempHum{}
-	acc.Accessory = accessory.New(accessory.Info{Name: conf.Name, SerialNumber: conf.Serialnumber, Manufacturer: conf.Manufacturer, FirmwareRevision: conf.Version}, accessory.TypeHumidifier)
+func NewAccessoryTemperatureHumidity(conf *ConfigurationDevice) *TemperatureHumidity {
+	acc := TemperatureHumidity{}
+	acc.Accessory = accessory.New(accessory.Info{Name: conf.Name, SerialNumber: conf.Serialnumber, Manufacturer: conf.Manufacturer, FirmwareRevision: conf.Version}, 24)
 
 	acc.TemperatureSensor = service.NewTemperatureSensor()
 	acc.TemperatureSensor.CurrentTemperature.SetMinValue(-100)
