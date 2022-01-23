@@ -29,6 +29,9 @@ type ITuyaDeviceOutlet struct {
 	// 24	Power coe	integer	0-1000000
 	// 25	Electricity coe	integer	0-1000000
 	// 26	Fault	fault	ov_cr
+	// 38
+	// 41
+	// 42
 	status map[string]interface{}
 }
 
@@ -94,7 +97,7 @@ func (s *ITuyaDeviceOutlet) ProcessResponse(code int, data []byte) {
 			s.status[k] = v
 		}
 	}
-	log.Printf("%v\n", r)
+	log.Printf("TuyaDeviceOutlet: %v\n", r)
 	s.Notify(code, s)
 }
 

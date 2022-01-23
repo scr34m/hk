@@ -92,7 +92,7 @@ func (s *ITuyaDeviceHumifier) ProcessResponse(code int, data []byte) {
 			s.status[k] = v
 		}
 	}
-	log.Printf("%v\n", r)
+	log.Printf("TuyaDeviceHumifier: %v\n", r)
 	s.Notify(code, s)
 }
 

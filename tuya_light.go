@@ -89,7 +89,7 @@ func (s *ITuyaDeviceLight) ProcessResponse(code int, data []byte) {
 			s.status[k] = v
 		}
 	}
-	log.Printf("%v\n", r)
+	log.Printf("TuyaDeviceLight: %v\n", r)
 	s.Notify(code, s)
 }
 
