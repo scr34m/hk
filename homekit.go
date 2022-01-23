@@ -36,6 +36,9 @@ func (h *homekit) Init() error {
 	case "light":
 		hum1 := NewAccessoryLight(dm, h.Internalname, &h.Device)
 		a = hum1.Accessory
+	case "ledstrip":
+		hum1 := NewAccessoryLedstrip(dm, h.Internalname, &h.Device)
+		a = hum1.Accessory
 	case "outlet":
 		hum1 := NewAccessoryOutlet(dm, h.Internalname, &h.Device)
 		a = hum1.Accessory
