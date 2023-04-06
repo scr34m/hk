@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+    mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/brutella/hc"
 	"github.com/brutella/hc/accessory"
 	"github.com/brutella/hc/log"
@@ -20,7 +21,7 @@ type homekit struct {
 // TODO this is ugly
 var dm *tuya.DeviceManager
 
-func (h *homekit) Init() error {
+func (h *homekit) Init(mqtt_cli mqtt.Client) error {
 	log.Info.Printf("Homekit accessory initialisation for %s\n", h.Type)
 
 	var a *accessory.Accessory
@@ -43,13 +44,13 @@ func (h *homekit) Init() error {
 		hum1 := NewAccessoryOutlet(dm, h.Internalname, &h.Device)
 		a = hum1.Accessory
 	case "thermostat":
-		hum1 := NewAccessoryThermostat(dm, h.Internalname, &h.Device)
+		hum1 := NewAccessoryThermostat(dm, h.Internalname, &h.Device, mqtt_cli)
 		a = hum1.Accessory
 	case "temperature_humidity":
 		hum1 := NewAccessoryTemperatureHumidity(&h.Device)
 		a = hum1.Accessory
 	case "heating_system":
-		hum1 := NewAccessoryHeatingSystem(&h.Device)
+		hum1 := NewAccessoryHeatingSystem(&h.Device, mqtt_cli)
 		a = hum1.Accessory
 	default:
 		panic(h.Type)

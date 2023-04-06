@@ -19,7 +19,7 @@ type ITuyaDeviceThermostat struct {
 	tuya.BaseDevice
 	// 1:true on / off
 	// 101:AAYoAAgeHgseHg0eABEsABYeAAYoAAgoHgsoHg0oABEoABYeAAYoAAgoHgsoHg0oABEoABYe ?
-	// 102:0 on / off relay (43,44,45,46)
+	// 102:0 on / off relay (41,42,43,44,45,46)
 	// 103:0 ?
 	// 104:true ?
 	// 2:50 Heating temerature (celsius / 2)

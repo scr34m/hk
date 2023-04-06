@@ -1,20 +1,63 @@
 package main
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
+    mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/brutella/hc/accessory"
 	"github.com/brutella/hc/service"
+	"github.com/brutella/hc/log"
 )
 
 type HeatingSystem struct {
 	Accessory                 *accessory.Accessory
 	TemperatureForwardSensor  *service.TemperatureSensor
 	TemperatureBackwardSensor *service.TemperatureSensor
+
+	internalname string
+	mqtt_cli mqtt.Client
+	url string
 }
 
-func NewAccessoryHeatingSystem(conf *ConfigurationDevice) *HeatingSystem {
+func (s *HeatingSystem) pub(name string, payload interface{}) {
+    token := s.mqtt_cli.Publish("hk/" + s.internalname + "/" + name, 0, true, fmt.Sprintf("%v", payload))
+    token.Wait()
+    if token.Error() != nil {
+	    log.Info.Println(token.Error())
+    } else {
+	    log.Info.Printf("Published to topic: %v payload: %v\n", "hk/" + s.internalname + "/" + name, payload)
+    }
+}
+
+func (s *HeatingSystem) init(internalname string, mqtt_cli mqtt.Client, url string) {
+	s.internalname = internalname
+	s.mqtt_cli = mqtt_cli
+	s.url = url
+
+	ticker := time.NewTicker(time.Second * 60)
+	go func() {
+		for ; true; <-ticker.C {
+			var result map[string]interface{}
+			err := getJSON(s.url, &result)
+			if err == nil {
+				if val, ok := result["forward"]; ok {
+					f, _ := strconv.ParseFloat(val.(string), 64)
+					s.TemperatureForwardSensor.CurrentTemperature.SetValue(f)
+					s.pub("forward", f)
+				}
+				if val, ok := result["backward"]; ok {
+					f, _ := strconv.ParseFloat(val.(string), 64)
+					s.TemperatureBackwardSensor.CurrentTemperature.SetValue(f)
+					s.pub("backward", f)
+				}
+			}
+		}
+	}()
+}
+
+func NewAccessoryHeatingSystem(conf *ConfigurationDevice, mqtt_cli mqtt.Client) *HeatingSystem {
 	acc := HeatingSystem{}
 	acc.Accessory = accessory.New(accessory.Info{Name: conf.Name, SerialNumber: conf.Serialnumber, Manufacturer: conf.Manufacturer, FirmwareRevision: conf.Version}, 22)
 
@@ -26,23 +69,7 @@ func NewAccessoryHeatingSystem(conf *ConfigurationDevice) *HeatingSystem {
 	acc.TemperatureBackwardSensor.CurrentTemperature.SetMinValue(0)
 	acc.Accessory.AddService(acc.TemperatureBackwardSensor.Service)
 
-	ticker := time.NewTicker(time.Second * 60)
-	go func() {
-		for ; true; <-ticker.C {
-			var result map[string]interface{}
-			err := getJSON(conf.Url, &result)
-			if err == nil {
-				if val, ok := result["forward"]; ok {
-					f, _ := strconv.ParseFloat(val.(string), 64)
-					acc.TemperatureForwardSensor.CurrentTemperature.SetValue(f)
-				}
-				if val, ok := result["backward"]; ok {
-					f, _ := strconv.ParseFloat(val.(string), 64)
-					acc.TemperatureBackwardSensor.CurrentTemperature.SetValue(f)
-				}
-			}
-		}
-	}()
+	acc.init("heating_system", mqtt_cli, conf.Url)
 
 	return &acc
 }

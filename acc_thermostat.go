@@ -1,6 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"strconv"
+
+    mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/brutella/hc/accessory"
 	"github.com/brutella/hc/characteristic"
 	"github.com/brutella/hc/log"
@@ -49,21 +53,94 @@ func NewTuyaThermostat_ServiceThermostat() *TuyaThermostat_ServiceThermostat {
 type TuyaThermostat struct {
 	Accessory                *accessory.Accessory
 	TuyaThermostat_ServiceThermostat *TuyaThermostat_ServiceThermostat
+
+	device TuyaDeviceThermostat
+	pending bool
+	internalname string
+	mqtt_cli mqtt.Client
 }
 
-func NewAccessoryThermostat(dm *tuya.DeviceManager, internalname string, conf *ConfigurationDevice) *TuyaThermostat {
-	s := new(ITuyaDeviceThermostat)
+func (s *TuyaThermostat) pub(name string, payload interface{}) {
+    token := s.mqtt_cli.Publish("hk/" + s.internalname + "/" + name, 0, true, fmt.Sprintf("%v", payload))
+    token.Wait()
+    if token.Error() != nil {
+	    log.Info.Println(token.Error())
+    } else {
+	    log.Info.Printf("Published to topic: %v payload: %v\n", "hk/" + s.internalname + "/" + name, payload)
+    }
+}
 
-	dm.DefineDevice(internalname, conf.Serialnumber, conf.Key, conf.Ip, conf.Version, s)
+func (s *TuyaThermostat) OnUpdate(on bool) {
+	log.Info.Printf("Terhmostat on")
 
-	d, _ := dm.GetDevice(internalname)
-	sw1 := d.(TuyaDeviceThermostat)
+	s.pub("on", on)
 
-	acc := TuyaThermostat{}
-	acc.Accessory = accessory.New(accessory.Info{Name: conf.Name, SerialNumber: conf.Serialnumber, Manufacturer: conf.Manufacturer, FirmwareRevision: conf.Version}, accessory.TypeThermostat)
+	if s.pending {
+		log.Info.Printf("Terhmostat working...\n")
+		return
+	}
 
-	acc.TuyaThermostat_ServiceThermostat = NewTuyaThermostat_ServiceThermostat()
-	acc.Accessory.AddService(acc.TuyaThermostat_ServiceThermostat.Service)
+	if on == s.device.Status("1").(bool) {
+		return
+	}
+
+	s.pending = true
+	var err error
+	if on {
+		_, err = s.device.SetW("1", true, 2)
+		if err == nil {
+			s.TuyaThermostat_ServiceThermostat.On.SetValue(true)
+		}
+	} else {
+		_, err = s.device.SetW("1", false, 2)
+		if err == nil {
+			s.TuyaThermostat_ServiceThermostat.On.SetValue(false)
+		}
+	}
+	s.pending = false
+}
+
+func (s *TuyaThermostat) TargetTemperatureSub(client mqtt.Client, msg mqtt.Message) {
+	value, _ := strconv.ParseFloat(string(msg.Payload()), 64)
+	log.Info.Printf("TargetTemperatureSub %v\n", value)
+	s.TargetTemperatureSet(value)
+}
+
+func (s *TuyaThermostat) TargetTemperatureUpdate(value float64) {
+	log.Info.Printf("Terhmostat TargetTemperature %v\n", value)
+	s.pub("heating/set", value)
+	s.TargetTemperatureSet(value)
+}
+
+func (s *TuyaThermostat) TargetTemperatureSet(value float64) {
+	if s.pending {
+		log.Info.Printf("Terhmostat working...\n")
+		return
+	}
+
+	s.pending = true
+	var err error
+	_, err = s.device.SetW("2", value * 2, 2)
+	if err == nil {
+		s.TuyaThermostat_ServiceThermostat.TargetTemperature.SetValue(value)
+	}
+	s.pending = false
+}
+
+func (s *TuyaThermostat) CurrentTemperatureUpdate(value float64) {
+	log.Info.Printf("Terhmostat CurrentTemperature %v\n", value)
+	
+	s.pub("temperature", value)
+}
+
+func (s *TuyaThermostat) init(internalname string, mqtt_cli mqtt.Client) {
+	s.internalname = internalname
+	s.mqtt_cli = mqtt_cli
+
+	d, _ := dm.GetDevice(s.internalname)
+	s.device = d.(TuyaDeviceThermostat)
+
+	s.pending = false	
 
 	syncChannel := tuya.MakeSyncChannel()
 	d.Subscribe(syncChannel)
@@ -72,61 +149,39 @@ func NewAccessoryThermostat(dm *tuya.DeviceManager, internalname string, conf *C
 		for {
 			select {
 			case <-syncChannel:
-				acc.TuyaThermostat_ServiceThermostat.On.SetValue(sw1.Status("1").(bool))
-				acc.TuyaThermostat_ServiceThermostat.CurrentTemperature.SetValue(sw1.Status("3").(float64) / 2)
+				s.TuyaThermostat_ServiceThermostat.On.SetValue(s.device.Status("1").(bool))
+				s.TuyaThermostat_ServiceThermostat.TargetTemperature.SetValue(s.device.Status("2").(float64) / 2)
+				s.TuyaThermostat_ServiceThermostat.CurrentTemperature.SetValue(s.device.Status("3").(float64) / 2)
+
+				s.pub("on", s.device.Status("1").(bool))
+				s.pub("heating/get", s.device.Status("2").(float64) / 2)
+				s.pub("temperature", s.device.Status("3").(float64) / 2)
 			}
 		}
 	}()
 
-	sw1Pending := false
+    topic := "hk/" + s.internalname + "/heating/set"
+    token := s.mqtt_cli.Subscribe(topic, 1, s.TargetTemperatureSub)
+    token.Wait()
 
-	acc.TuyaThermostat_ServiceThermostat.On.OnValueRemoteUpdate(func(on bool) {
-		log.Info.Printf("Terhmostat on")
+    log.Info.Printf("Subscribed to topic: %s\n", topic)
 
-		if sw1Pending {
-			log.Info.Printf("Terhmostat working...\n")
-			return
-		}
+	s.TuyaThermostat_ServiceThermostat.On.OnValueRemoteUpdate(s.OnUpdate)
+	s.TuyaThermostat_ServiceThermostat.TargetTemperature.OnValueRemoteUpdate(s.TargetTemperatureUpdate)
+	s.TuyaThermostat_ServiceThermostat.CurrentTemperature.OnValueRemoteUpdate(s.CurrentTemperatureUpdate)
+}
 
-		if on == sw1.Status("1").(bool) {
-			return
-		}
+func NewAccessoryThermostat(dm *tuya.DeviceManager, internalname string, conf *ConfigurationDevice, mqtt_cli mqtt.Client) *TuyaThermostat {
+	s := new(ITuyaDeviceThermostat)
 
-		sw1Pending = true
+	dm.DefineDevice(internalname, conf.Serialnumber, conf.Key, conf.Ip, conf.Version, s)
 
-		var err error
-		if on {
-			_, err = sw1.SetW("1", true, 2)
-			if err == nil {
-				acc.TuyaThermostat_ServiceThermostat.On.SetValue(true)
-			}
-		} else {
-			_, err = sw1.SetW("1", false, 2)
-			if err == nil {
-				acc.TuyaThermostat_ServiceThermostat.On.SetValue(false)
-			}
-		}
-		sw1Pending = false
-	})
+	acc := TuyaThermostat{}
+	acc.Accessory = accessory.New(accessory.Info{Name: conf.Name, SerialNumber: conf.Serialnumber, Manufacturer: conf.Manufacturer, FirmwareRevision: conf.Version}, accessory.TypeThermostat)
+	acc.TuyaThermostat_ServiceThermostat = NewTuyaThermostat_ServiceThermostat()
+	acc.Accessory.AddService(acc.TuyaThermostat_ServiceThermostat.Service)
 
-	acc.TuyaThermostat_ServiceThermostat.TargetTemperature.OnValueRemoteUpdate(func(value float64) {
-		log.Info.Printf("Terhmostat TargetTemperature %v\n", value)
-
-		if sw1Pending {
-			log.Info.Printf("Terhmostat working...\n")
-			return
-		} else {
-			sw1Pending = true
-		}
-
-		var err error
-		_, err = sw1.SetW("2", value * 2, 2)
-		if err == nil {
-			acc.TuyaThermostat_ServiceThermostat.TargetTemperature.SetValue(value)
-		}
-
-		sw1Pending = false
-	})
+	acc.init(internalname, mqtt_cli)
 
 	return &acc
 }

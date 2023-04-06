@@ -8,9 +8,24 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+	"fmt"
 
+    mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/brutella/hc/log"
 )
+
+
+var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
+    log.Info.Printf("Received message: %s from topic: %s\n", msg.Payload(), msg.Topic())
+}
+
+var connectHandler mqtt.OnConnectHandler = func(client mqtt.Client) {
+    log.Info.Println("Connected")
+}
+
+var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
+    log.Info.Printf("Connect lost: %v", err)
+}
 
 func main() {
 	c := flag.String("c", "hk.json", "Specify the configuration file.")
@@ -32,6 +47,18 @@ func main() {
 		log.Debug.Enable()
 	}
 
+    var broker = "localhost"
+    var port = 1883
+    opts := mqtt.NewClientOptions()
+    opts.AddBroker(fmt.Sprintf("tcp://%s:%d", broker, port))
+    opts.SetDefaultPublishHandler(messagePubHandler)
+    opts.OnConnect = connectHandler
+    opts.OnConnectionLost = connectLostHandler
+    mqtt_cli := mqtt.NewClient(opts)
+    if token := mqtt_cli.Connect(); token.Wait() && token.Error() != nil {
+        log.Info.Fatal(token.Error())
+    }
+
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)
 
@@ -41,7 +68,7 @@ func main() {
 
 	for _, a := range Config.Accessories {
 		homekit := makeHomekit(a)
-		homekit.Init()
+		homekit.Init(mqtt_cli)
 		go homekit.Start(ctx)
 	}
 
