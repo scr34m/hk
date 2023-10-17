@@ -8,6 +8,8 @@ type ConfigurationDevice struct {
 	Key          string
 	Ip           string
 	Url          string
+	Monitor_18   bool
+	Monitor_19   bool
 }
 
 type ConfigurationAccessory struct {

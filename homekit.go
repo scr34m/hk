@@ -41,7 +41,7 @@ func (h *homekit) Init(mqtt_cli mqtt.Client) error {
 		hum1 := NewAccessoryLedstrip(dm, h.Internalname, &h.Device)
 		a = hum1.Accessory
 	case "outlet":
-		hum1 := NewAccessoryOutlet(dm, h.Internalname, &h.Device)
+		hum1 := NewAccessoryOutlet(dm, h.Internalname, &h.Device, mqtt_cli)
 		a = hum1.Accessory
 	case "thermostat":
 		hum1 := NewAccessoryThermostat(dm, h.Internalname, &h.Device, mqtt_cli)
