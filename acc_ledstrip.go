@@ -1,8 +1,8 @@
 package main
 
 import (
-	"strconv"
 	"fmt"
+	"strconv"
 
 	"github.com/brutella/hc/accessory"
 	"github.com/brutella/hc/characteristic"
@@ -81,7 +81,7 @@ func NewAccessoryLedstrip(dm *tuya.DeviceManager, internalname string, conf *Con
 	var hue float64
 	var saturation float64
 	var brightness float64
-	
+
 	sw1Pending := true
 
 	go func() {
@@ -96,8 +96,8 @@ func NewAccessoryLedstrip(dm *tuya.DeviceManager, internalname string, conf *Con
 				v, _ := strconv.ParseInt(vs, 16, 64)
 
 				hue = float64(int((v >> 32) & 0xffff))
-				saturation = float64(mapInt(int(v >> 16) & 0xffff, 0, 1000, 0, 100))
-				brightness = float64(mapInt(int(v & 0xffff), 0, 1000, 0, 100))
+				saturation = float64(mapInt(int(v>>16)&0xffff, 0, 1000, 0, 100))
+				brightness = float64(mapInt(int(v&0xffff), 0, 1000, 0, 100))
 
 				log.Info.Printf("hue %v, saturation %v, brightness %v\n", hue, saturation, brightness)
 

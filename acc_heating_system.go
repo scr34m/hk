@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"time"
 
-    mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/brutella/hc/accessory"
-	"github.com/brutella/hc/service"
 	"github.com/brutella/hc/log"
+	"github.com/brutella/hc/service"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 type HeatingSystem struct {
@@ -17,18 +17,16 @@ type HeatingSystem struct {
 	TemperatureBackwardSensor *service.TemperatureSensor
 
 	internalname string
-	mqtt_cli mqtt.Client
-	url string
+	mqtt_cli     mqtt.Client
+	url          string
 }
 
 func (s *HeatingSystem) pub(name string, payload interface{}) {
-    token := s.mqtt_cli.Publish("hk/" + s.internalname + "/" + name, 0, true, fmt.Sprintf("%v", payload))
-    token.Wait()
-    if token.Error() != nil {
-	    log.Info.Println(token.Error())
-    } else {
-	    log.Info.Printf("Published to topic: %v payload: %v\n", "hk/" + s.internalname + "/" + name, payload)
-    }
+	token := s.mqtt_cli.Publish("hk/"+s.internalname+"/"+name, 0, true, fmt.Sprintf("%v", payload))
+	token.Wait()
+	if token.Error() != nil {
+		log.Info.Println(token.Error())
+	}
 }
 
 func (s *HeatingSystem) init(internalname string, mqtt_cli mqtt.Client, url string) {

@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"strconv"
 
-    mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/brutella/hc/accessory"
 	"github.com/brutella/hc/characteristic"
 	"github.com/brutella/hc/log"
 	"github.com/brutella/hc/service"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/scr34m/tuya"
 )
 
 type TuyaThermostat_ServiceThermostat struct {
-	Service           *service.Service
+	Service *service.Service
 
-	On                *characteristic.On
+	On                         *characteristic.On
 	CurrentHeatingCoolingState *characteristic.CurrentHeatingCoolingState
 	TargetHeatingCoolingState  *characteristic.TargetHeatingCoolingState
 	CurrentTemperature         *characteristic.CurrentTemperature
@@ -51,23 +51,21 @@ func NewTuyaThermostat_ServiceThermostat() *TuyaThermostat_ServiceThermostat {
 }
 
 type TuyaThermostat struct {
-	Accessory                *accessory.Accessory
+	Accessory                        *accessory.Accessory
 	TuyaThermostat_ServiceThermostat *TuyaThermostat_ServiceThermostat
 
-	device TuyaDeviceThermostat
-	pending bool
+	device       TuyaDeviceThermostat
+	pending      bool
 	internalname string
-	mqtt_cli mqtt.Client
+	mqtt_cli     mqtt.Client
 }
 
 func (s *TuyaThermostat) pub(name string, payload interface{}) {
-    token := s.mqtt_cli.Publish("hk/" + s.internalname + "/" + name, 0, true, fmt.Sprintf("%v", payload))
-    token.Wait()
-    if token.Error() != nil {
-	    log.Info.Println(token.Error())
-    } else {
-	    log.Info.Printf("Published to topic: %v payload: %v\n", "hk/" + s.internalname + "/" + name, payload)
-    }
+	token := s.mqtt_cli.Publish("hk/"+s.internalname+"/"+name, 0, true, fmt.Sprintf("%v", payload))
+	token.Wait()
+	if token.Error() != nil {
+		log.Info.Println(token.Error())
+	}
 }
 
 func (s *TuyaThermostat) OnUpdate(on bool) {
@@ -120,7 +118,7 @@ func (s *TuyaThermostat) TargetTemperatureSet(value float64) {
 
 	s.pending = true
 	var err error
-	_, err = s.device.SetW("2", value * 2, 2)
+	_, err = s.device.SetW("2", value*2, 2)
 	if err == nil {
 		s.TuyaThermostat_ServiceThermostat.TargetTemperature.SetValue(value)
 	}
@@ -129,7 +127,7 @@ func (s *TuyaThermostat) TargetTemperatureSet(value float64) {
 
 func (s *TuyaThermostat) CurrentTemperatureUpdate(value float64) {
 	log.Info.Printf("Terhmostat CurrentTemperature %v\n", value)
-	
+
 	s.pub("temperature", value)
 }
 
@@ -140,7 +138,7 @@ func (s *TuyaThermostat) init(internalname string, mqtt_cli mqtt.Client) {
 	d, _ := dm.GetDevice(s.internalname)
 	s.device = d.(TuyaDeviceThermostat)
 
-	s.pending = false	
+	s.pending = false
 
 	syncChannel := tuya.MakeSyncChannel()
 	d.Subscribe(syncChannel)
@@ -154,17 +152,17 @@ func (s *TuyaThermostat) init(internalname string, mqtt_cli mqtt.Client) {
 				s.TuyaThermostat_ServiceThermostat.CurrentTemperature.SetValue(s.device.Status("3").(float64) / 2)
 
 				s.pub("on", s.device.Status("1").(bool))
-				s.pub("heating/get", s.device.Status("2").(float64) / 2)
-				s.pub("temperature", s.device.Status("3").(float64) / 2)
+				s.pub("heating/get", s.device.Status("2").(float64)/2)
+				s.pub("temperature", s.device.Status("3").(float64)/2)
 			}
 		}
 	}()
 
-    topic := "hk/" + s.internalname + "/heating/set"
-    token := s.mqtt_cli.Subscribe(topic, 1, s.TargetTemperatureSub)
-    token.Wait()
+	topic := "hk/" + s.internalname + "/heating/set"
+	token := s.mqtt_cli.Subscribe(topic, 1, s.TargetTemperatureSub)
+	token.Wait()
 
-    log.Info.Printf("Subscribed to topic: %s\n", topic)
+	log.Info.Printf("Subscribed to topic: %s\n", topic)
 
 	s.TuyaThermostat_ServiceThermostat.On.OnValueRemoteUpdate(s.OnUpdate)
 	s.TuyaThermostat_ServiceThermostat.TargetTemperature.OnValueRemoteUpdate(s.TargetTemperatureUpdate)

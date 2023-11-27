@@ -20,3 +20,5 @@ require (
 	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c // indirect
 	golang.org/x/text v0.3.3 // indirect
 )
+
+replace github.com/scr34m/tuya => /home/scr34m/go/src/github.com/scr34m/tuya

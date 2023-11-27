@@ -1,14 +1,14 @@
 package main
 
 import (
-	"time"
 	"fmt"
+	"time"
 
-    mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/brutella/hc/accessory"
 	"github.com/brutella/hc/characteristic"
 	"github.com/brutella/hc/log"
 	"github.com/brutella/hc/service"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/scr34m/tuya"
 )
 
@@ -31,20 +31,18 @@ type TuyaOutlet struct {
 	Accessory                *accessory.Accessory
 	TuyaOutlet_ServiceOutlet *TuyaOutlet_ServiceOutlet
 
-	device TuyaDeviceOutlet
-	pending bool
+	device       TuyaDeviceOutlet
+	pending      bool
 	internalname string
-	mqtt_cli mqtt.Client
+	mqtt_cli     mqtt.Client
 }
 
 func (s *TuyaOutlet) pub(name string, payload interface{}) {
-    token := s.mqtt_cli.Publish("hk/" + s.internalname + "/" + name, 0, true, fmt.Sprintf("%v", payload))
-    token.Wait()
-    if token.Error() != nil {
-	    log.Info.Println(token.Error())
-    } else {
-	    log.Info.Printf("Published to topic: %v payload: %v\n", "hk/" + s.internalname + "/" + name, payload)
-    }
+	token := s.mqtt_cli.Publish("hk/"+s.internalname+"/"+name, 0, true, fmt.Sprintf("%v", payload))
+	token.Wait()
+	if token.Error() != nil {
+		log.Info.Println(token.Error())
+	}
 }
 
 func (s *TuyaOutlet) OnUpdate(on bool) {
@@ -84,7 +82,7 @@ func (s *TuyaOutlet) init(internalname string, mqtt_cli mqtt.Client, conf *Confi
 	d, _ := dm.GetDevice(internalname)
 	s.device = d.(TuyaDeviceOutlet)
 
-	s.pending = false	
+	s.pending = false
 
 	syncChannel := tuya.MakeSyncChannel()
 	d.Subscribe(syncChannel)
@@ -98,15 +96,14 @@ func (s *TuyaOutlet) init(internalname string, mqtt_cli mqtt.Client, conf *Confi
 		}
 	}()
 
-
 	if conf.Monitor_18 || conf.Monitor_19 {
 		ticker := time.NewTicker(time.Second * 20)
 		go func() {
 			for ; true; <-ticker.C {
-				if (conf.Monitor_18) {
+				if conf.Monitor_18 {
 					s.pub("current", s.device.Status("18"))
 				}
-				if (conf.Monitor_19) {
+				if conf.Monitor_19 {
 					s.pub("power", s.device.Status("19"))
 				}
 			}
@@ -115,7 +112,6 @@ func (s *TuyaOutlet) init(internalname string, mqtt_cli mqtt.Client, conf *Confi
 
 	s.TuyaOutlet_ServiceOutlet.On.OnValueRemoteUpdate(s.OnUpdate)
 }
-
 
 func NewAccessoryOutlet(dm *tuya.DeviceManager, internalname string, conf *ConfigurationDevice, mqtt_cli mqtt.Client) *TuyaOutlet {
 	s := new(ITuyaDeviceOutlet)
@@ -131,6 +127,3 @@ func NewAccessoryOutlet(dm *tuya.DeviceManager, internalname string, conf *Confi
 
 	return &acc
 }
-
-
-
