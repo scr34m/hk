@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/brutella/hc/accessory"
@@ -45,10 +46,33 @@ func (s *TuyaOutlet) pub(name string, payload interface{}) {
 	}
 }
 
-func (s *TuyaOutlet) OnUpdate(on bool) {
-	log.Info.Printf("Outlet on")
+func (s *TuyaOutlet) OnSub(client mqtt.Client, msg mqtt.Message) {
+	value, _ := strconv.ParseBool(string(msg.Payload()))
+	log.Info.Printf("OnSet %v\n", value)
+	s.OnSet(value)
+}
 
-	s.pub("on", on)
+func (s *TuyaOutlet) OnSet(value bool) {
+	if s.pending {
+		log.Info.Printf("Outlet working...\n")
+		return
+	}
+
+	s.pub("on/get", value)
+
+	s.pending = true
+	var err error
+	_, err = s.device.SetW("1", value, 2)
+	if err == nil {
+		s.TuyaOutlet_ServiceOutlet.On.SetValue(value)
+	}
+	s.pending = false
+}
+
+func (s *TuyaOutlet) OnUpdate(on bool) {
+	log.Info.Printf("Outlet %v", on)
+
+	s.pub("on/get", on)
 
 	if s.pending {
 		log.Info.Printf("Outlet working...\n")
@@ -109,6 +133,12 @@ func (s *TuyaOutlet) init(internalname string, mqtt_cli mqtt.Client, conf *Confi
 			}
 		}()
 	}
+
+	topic := "hk/" + s.internalname + "/on/set"
+	token := s.mqtt_cli.Subscribe(topic, 1, s.OnSub)
+	token.Wait()
+
+	log.Info.Printf("Subscribed to topic: %s\n", topic)
 
 	s.TuyaOutlet_ServiceOutlet.On.OnValueRemoteUpdate(s.OnUpdate)
 }
